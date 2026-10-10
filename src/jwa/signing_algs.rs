@@ -2,6 +2,10 @@ use serde::Serialize;
 
 use serde::Deserialize;
 
+use super::curves::JwaCurve;
+
+use super::key_types::JwaKty;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum JwaSigningAlgorithm {
     ///
@@ -55,4 +59,42 @@ pub enum JwaSigningAlgorithm {
     ///
     #[serde(rename = "Ed25519")]
     Ed25519,
+}
+
+impl JwaSigningAlgorithm {
+    pub fn kty(&self) -> JwaKty {
+        match self {
+            Self::Ed25519 => JwaKty::Okp,
+
+            Self::Es256 | Self::Es384 | Self::Es512 => JwaKty::Ec,
+
+            Self::Hs256 | Self::Hs384 | Self::Hs512 => JwaKty::Oct,
+
+            Self::Rs256 | Self::Rs384 | Self::Rs512 | Self::Ps256 | Self::Ps384 | Self::Ps512 => {
+                JwaKty::Rsa
+            }
+        }
+    }
+
+    pub fn crv(&self) -> Option<JwaCurve> {
+        match self {
+            Self::Hs256
+            | Self::Hs384
+            | Self::Hs512
+            | Self::Rs256
+            | Self::Rs384
+            | Self::Rs512
+            | Self::Ps256
+            | Self::Ps384
+            | Self::Ps512 => None,
+
+            Self::Es256 => Some(JwaCurve::P256),
+
+            Self::Es384 => Some(JwaCurve::P384),
+
+            Self::Es512 => Some(JwaCurve::P521),
+
+            Self::Ed25519 => Some(JwaCurve::Ed25519),
+        }
+    }
 }
