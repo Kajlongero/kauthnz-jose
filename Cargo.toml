@@ -3,4 +3,21 @@ name = "kauthnz-jose"
 version = "0.0.1"
 edition = "2024"
 
-[dependencies]
+[dependencies.base64ct]
+version = "1.8.3"
+features = ["alloc"]
+
+[dependencies.hmac]
+version = "0.13.0"
+features = ["zeroize"]
+
+[dependencies.sha2]
+version = "0.11.0"
+features = ["zeroize"]
+
+[dependencies.serde]
+version = "1.0.229"
+features = ["derive"]
+
+[dependencies.serde_json]
+version = "1.0.151"
