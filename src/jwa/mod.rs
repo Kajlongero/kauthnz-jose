@@ -9,3 +9,5 @@ mod signing_algs;
 mod key_management_algs;
 
 mod content_encryption_algs;
+
+pub use signing_algs::JwaSigningAlgorithm;

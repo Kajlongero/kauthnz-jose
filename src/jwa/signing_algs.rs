@@ -97,4 +97,33 @@ impl JwaSigningAlgorithm {
             Self::Ed25519 => Some(JwaCurve::Ed25519),
         }
     }
+
+    /// Length in bytes of the signature the algorithm produces, when the algorithm itself fixes it.
+    ///
+    /// RS* and PS* return `None`: the signature is as long as the RSA key's modulus
+    /// (RFC 7518 §3.3 and §3.5), so it can't be known without the key.
+    pub const fn signature_len(&self) -> Option<usize> {
+        match self {
+            // Size of the hash output (RFC 7518 §3.2).
+            Self::Hs256 => Some(32),
+
+            Self::Hs384 => Some(48),
+
+            Self::Hs512 => Some(64),
+
+            // R || S, fixed width, twice the size of the curve order (RFC 7518 §3.4).
+            Self::Es256 => Some(64),
+
+            Self::Es384 => Some(96),
+
+            Self::Es512 => Some(132),
+
+            // RFC 8032 §5.1.6: R (32) || S (32).
+            Self::Ed25519 => Some(64),
+
+            Self::Rs256 | Self::Rs384 | Self::Rs512 | Self::Ps256 | Self::Ps384 | Self::Ps512 => {
+                None
+            }
+        }
+    }
 }
