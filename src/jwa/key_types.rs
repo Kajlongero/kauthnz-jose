@@ -19,4 +19,8 @@ pub enum JwaKty {
     ///
     #[serde(rename = "OKP")]
     Okp,
+
+    /// Algorithm Key Pair (RFC 9964): keys whose algorithm fixes the parameters, e.g. ML-DSA.
+    #[serde(rename = "AKP")]
+    Akp,
 }
