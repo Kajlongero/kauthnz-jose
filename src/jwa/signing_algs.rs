@@ -151,18 +151,25 @@ impl JwaSigningAlgorithm {
         }
     }
 
-    /// Length in bytes of the public key, when the algorithm itself fixes it.
-    ///
-    /// Only ML-DSA does (FIPS 204 Table 2); for the other families the size depends on the
-    /// curve or the RSA modulus, which `crv()` or the key itself carry.
+    /// Length in bytes of the single public value of the JWK (`x` for OKP, `pub` for AKP), when
+    /// the algorithm itself fixes it.
     pub const fn public_key_len(&self) -> Option<usize> {
         match self {
+            // RFC 8032 §5.1.5, carried in `x` (RFC 8037 §2).
+            Self::Ed25519 => Some(32),
+
+            // FIPS 204 Table 2, carried in `pub` (RFC 9964).
             Self::MlDsa44 => Some(1312),
 
             Self::MlDsa65 => Some(1952),
 
             Self::MlDsa87 => Some(2592),
 
+            // Not a single fixed value, so it is left out on purpose:
+            // - ES*: the JWK has two coordinates, `x` and `y`, and their size depends on the
+            //   curve, not on the algorithm (RFC 7518 §6.2.1.2).
+            // - RS* and PS*: it depends on the RSA modulus (RFC 7518 §3.3 only sets a minimum).
+            // - HS*: there is no public key.
             _ => None,
         }
     }
