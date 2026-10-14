@@ -173,4 +173,14 @@ impl JwaSigningAlgorithm {
             _ => None,
         }
     }
+
+    // Priv param length of ML-DSA private keys MUST be 32 bytes length according to
+    // RFC 9964 $4 ML-DSA Private Keys
+    pub const fn mldsa_priv_param_len(&self) -> Option<usize> {
+        match self {
+            Self::MlDsa44 | Self::MlDsa65 | Self::MlDsa87 => Some(32),
+
+            _ => None,
+        }
+    }
 }
