@@ -174,12 +174,22 @@ impl JwaSigningAlgorithm {
         }
     }
 
-    // Priv param length of ML-DSA private keys MUST be 32 bytes length according to
-    // RFC 9964 $4 ML-DSA Private Keys
-    pub const fn mldsa_priv_param_len(&self) -> Option<usize> {
+    /// Length in bytes of the JWK member that holds the secret (`d` for OKP, `priv` for AKP),
+    /// when the algorithm itself fixes it.
+    ///
+    /// It is the member, not the whole private key: for ML-DSA it is the 32-byte seed, from
+    /// which the expanded key is derived.
+    pub const fn private_param_len(&self) -> Option<usize> {
         match self {
+            // RFC 8037 §2: `d` is the 32-byte private key of RFC 8032 §5.1.5.
+            Self::Ed25519 => Some(32),
+
+            // RFC 9964 §4: `priv` is the seed, 32 bytes for every parameter set.
             Self::MlDsa44 | Self::MlDsa65 | Self::MlDsa87 => Some(32),
 
+            // Left out for the same reasons as `public_key_len`: ES* depends on the curve,
+            // RS* and PS* on the RSA modulus, and HS* is a shared secret of any length
+            // above the minimum.
             _ => None,
         }
     }
