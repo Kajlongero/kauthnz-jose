@@ -149,6 +149,48 @@ mod tests {
     }
 
     #[test]
+    fn rfc7797_section_4_1_control_without_b64() {
+        // RFC 7797 §4.1: the same payload `$.02` base64url encoded (`JC4wMg`) and no `b64`, the
+        // signing input of plain RFC 7515. It is the control for the §4.2 vector below.
+        let key = base64url::decode(
+            "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow",
+        )
+        .unwrap();
+
+        let signature = HmacSigner::new(JwaSigningAlgorithm::Hs256, &key)
+            .unwrap()
+            .sign(b"eyJhbGciOiJIUzI1NiJ9.JC4wMg")
+            .unwrap();
+
+        assert_eq!(
+            base64url::encode(&signature),
+            "5mvfOroL-g7HyqJoozehmsaqmvTYGEq5jTI1gVvoEoQ"
+        );
+    }
+
+    #[test]
+    fn rfc7797_section_4_2_unencoded_payload() {
+        // RFC 7797 §4.2: the key of RFC 7515 Appendix A.1, and the payload `$.02` NOT encoded.
+        // The signing input is ASCII(BASE64URL(header) || '.') || payload (RFC 7797 §3).
+        let key = base64url::decode(
+            "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow",
+        )
+        .unwrap();
+
+        let signing_input = b"eyJhbGciOiJIUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19.$.02";
+
+        let signature = HmacSigner::new(JwaSigningAlgorithm::Hs256, &key)
+            .unwrap()
+            .sign(signing_input)
+            .unwrap();
+
+        assert_eq!(
+            base64url::encode(&signature),
+            "A5dxf2s96_n5FLueVuW1Z_vh161FwXZC4YLPff6dmDY"
+        );
+    }
+
+    #[test]
     fn rfc4231_section_4_7_key_larger_than_block_size() {
         // RFC 4231 test case 6: a 131-byte key, longer than every block size, so HMAC hashes
         // it first. It is the only case in the RFC with a key long enough for HS512.

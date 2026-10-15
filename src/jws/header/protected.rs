@@ -60,7 +60,7 @@ impl ProtectedHeader<'_> {
 }
 
 // Written by hand so the order is explicit: `alg`, then `b64` and `crit` (as in the example of
-// RFC 7797 §4.1), the registered parameters, and the custom ones in insertion order.
+// RFC 7797 §4.2), the registered parameters, and the custom ones in insertion order.
 impl Serialize for ProtectedHeader<'_> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut map = serializer.serialize_map(None)?;
@@ -160,14 +160,14 @@ mod tests {
     }
 
     #[test]
-    fn rfc7797_section_4_1_header() {
+    fn rfc7797_section_4_2_header() {
         let header = bare(JwaSigningAlgorithm::Hs256, PayloadEncoding::Unencoded);
 
         let json = header.to_json().unwrap();
 
         assert_eq!(json, br#"{"alg":"HS256","b64":false,"crit":["b64"]}"#);
 
-        // The same header as it appears, encoded, in the example of RFC 7797 §4.1.
+        // The same header as it appears, encoded, in the example of RFC 7797 §4.2.
         assert_eq!(
             base64url::encode(&json),
             "eyJhbGciOiJIUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19"
