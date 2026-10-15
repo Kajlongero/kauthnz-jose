@@ -18,7 +18,7 @@ use crate::jws::signers::SignerKeyErrors;
 
 /// The keyed MAC for each hash. The key lives only inside it: there is no copy of the raw
 /// secret to keep around, and each signature starts from a clone of this state.
-enum Keyed {
+pub(in crate::jws) enum Keyed {
     Hs256(Hmac<Sha256>),
 
     Hs384(Hmac<Sha384>),
@@ -34,7 +34,10 @@ pub struct HmacSigner {
 }
 
 impl Keyed {
-    fn new(alg: JwaSigningAlgorithm, secret: &[u8]) -> Result<Self, SignerKeyErrors> {
+    pub(in crate::jws) fn new(
+        alg: JwaSigningAlgorithm,
+        secret: &[u8],
+    ) -> Result<Self, SignerKeyErrors> {
         fn mac<M: KeyInit>(alg: JwaSigningAlgorithm, secret: &[u8]) -> Result<M, SignerKeyErrors> {
             // For HS* the signature is as long as the hash output, the minimum key size.
             let min_key_len = alg
@@ -61,7 +64,7 @@ impl Keyed {
         })
     }
 
-    fn alg(&self) -> JwaSigningAlgorithm {
+    pub(in crate::jws) fn alg(&self) -> JwaSigningAlgorithm {
         match self {
             Self::Hs256(_) => JwaSigningAlgorithm::Hs256,
 
@@ -71,7 +74,7 @@ impl Keyed {
         }
     }
 
-    fn tag(&self, signing_input: &[u8]) -> Vec<u8> {
+    pub(in crate::jws) fn tag(&self, signing_input: &[u8]) -> Vec<u8> {
         fn finish<M: Mac + Clone>(keyed: &M, signing_input: &[u8]) -> Vec<u8> {
             let mut mac = keyed.clone();
 
@@ -90,6 +93,28 @@ impl Keyed {
     }
 }
 
+impl Keyed {
+    /// Checks `signature` against the MAC of `signing_input`, in constant time
+    /// (`verify_slice`). A signature of the wrong length is just a mismatch.
+    pub(in crate::jws) fn matches(&self, signing_input: &[u8], signature: &[u8]) -> bool {
+        fn check<M: Mac + Clone>(keyed: &M, signing_input: &[u8], signature: &[u8]) -> bool {
+            let mut mac = keyed.clone();
+
+            mac.update(signing_input);
+
+            mac.verify_slice(signature).is_ok()
+        }
+
+        match self {
+            Self::Hs256(mac) => check(mac, signing_input, signature),
+
+            Self::Hs384(mac) => check(mac, signing_input, signature),
+
+            Self::Hs512(mac) => check(mac, signing_input, signature),
+        }
+    }
+}
+
 impl HmacSigner {
     /// The key has to be at least as long as the hash output: 32, 48 or 64 bytes for HS256,
     /// HS384 or HS512 (RFC 7518 §3.2). A longer key is fine. Its entropy can't be checked.
@@ -97,6 +122,22 @@ impl HmacSigner {
         Ok(Self {
             keyed: Keyed::new(alg, secret)?,
         })
+    }
+
+    /// HS256, with a key of at least 32 bytes. The dedicated form of [`new`](Self::new), for
+    /// when the algorithm is written in the code and not read from configuration.
+    pub fn hs256(secret: &[u8]) -> Result<Self, SignerKeyErrors> {
+        Self::new(JwaSigningAlgorithm::Hs256, secret)
+    }
+
+    /// HS384, with a key of at least 48 bytes.
+    pub fn hs384(secret: &[u8]) -> Result<Self, SignerKeyErrors> {
+        Self::new(JwaSigningAlgorithm::Hs384, secret)
+    }
+
+    /// HS512, with a key of at least 64 bytes.
+    pub fn hs512(secret: &[u8]) -> Result<Self, SignerKeyErrors> {
+        Self::new(JwaSigningAlgorithm::Hs512, secret)
     }
 }
 
@@ -273,23 +314,46 @@ mod tests {
 
     #[test]
     fn rejects_algorithms_outside_the_family() {
-        for alg in [
-            JwaSigningAlgorithm::Rs256,
-            JwaSigningAlgorithm::Rs384,
-            JwaSigningAlgorithm::Rs512,
-            JwaSigningAlgorithm::Ps256,
-            JwaSigningAlgorithm::Ps384,
-            JwaSigningAlgorithm::Ps512,
-            JwaSigningAlgorithm::Es256,
-            JwaSigningAlgorithm::Es384,
-            JwaSigningAlgorithm::Es512,
-            JwaSigningAlgorithm::Ed25519,
-        ] {
+        // Everything that is not HS*, ML-DSA included, whatever the key.
+        for alg in JwaSigningAlgorithm::ALL {
+            if HS.contains(&alg) {
+                continue;
+            }
+
+            for key in [&[1u8; 64][..], &[1u8; 4096], &[]] {
+                assert_eq!(
+                    HmacSigner::new(alg, key).err(),
+                    Some(SignerKeyErrors::AlgorithmMismatch),
+                    "{alg:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_dedicated_constructors_are_the_generic_one_with_the_algorithm_fixed() {
+        let cases: [(JwaSigningAlgorithm, fn(&[u8]) -> Result<HmacSigner, SignerKeyErrors>); 3] = [
+            (JwaSigningAlgorithm::Hs256, HmacSigner::hs256),
+            (JwaSigningAlgorithm::Hs384, HmacSigner::hs384),
+            (JwaSigningAlgorithm::Hs512, HmacSigner::hs512),
+        ];
+
+        for (alg, dedicated) in cases {
+            let key = [3u8; 64];
+
+            let signer = dedicated(&key).unwrap();
+
+            assert_eq!(signer.alg(), alg);
             assert_eq!(
-                HmacSigner::new(alg, &[1; 64]).err(),
-                Some(SignerKeyErrors::AlgorithmMismatch),
-                "{alg:?}"
+                signer.sign(b"input").unwrap(),
+                HmacSigner::new(alg, &key).unwrap().sign(b"input").unwrap()
             );
+
+            // The same key rules, and the same error.
+            let too_short = vec![3u8; alg.signature_len().unwrap() - 1];
+
+            assert_eq!(dedicated(&too_short).err(), Some(SignerKeyErrors::TooShort));
+            assert_eq!(dedicated(&[]).err(), Some(SignerKeyErrors::TooShort));
         }
     }
 
