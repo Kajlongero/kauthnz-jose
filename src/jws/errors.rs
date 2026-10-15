@@ -1,6 +1,32 @@
 use super::signers::SignerErrors;
 
-pub enum JwsVerifyErrors {}
+/// Why a JWS was not accepted. Everything that does not need the key says what it is; the
+/// signature check itself says nothing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum JwsVerifyErrors {
+    /// The token could not be read: shape, header, payload or signature encoding.
+    Parse(JwsParseErrors),
+
+    /// The `alg` of the token is not the one of the verifier. The token never picks how it is
+    /// checked.
+    AlgorithmMismatch,
+
+    /// The `typ` is not the expected one, or the token has none.
+    TypMismatch,
+
+    /// The `cty` is not the expected one, or the token has none.
+    CtyMismatch,
+
+    /// The payload is detached and the caller did not bring it.
+    MissingPayload,
+
+    /// The payload is inside the token and the caller brought another one.
+    UnexpectedPayload,
+
+    /// The signature does not match: the token, the payload or the key is not the one that was
+    /// signed. Deliberately a single case.
+    InvalidSignature,
+}
 
 /// Why a compact JWS was refused before any signature was checked.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,6 +87,8 @@ pub enum JwsParseErrors {
 
     /// The signature is empty or not the length `alg` produces.
     SignatureLength,
+
+    SignatureNotBase64Url,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
