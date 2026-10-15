@@ -6,7 +6,7 @@ mod header;
 
 mod signers;
 
-mod unverified;
+mod validator;
 
 mod validators;
 
