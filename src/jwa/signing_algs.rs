@@ -74,6 +74,27 @@ pub enum JwaSigningAlgorithm {
 }
 
 impl JwaSigningAlgorithm {
+    /// Every algorithm, so that a test can go through all of them. `tests::position` keeps it
+    /// complete: a new variant does not compile there until it has a place in `ALL`.
+    pub const ALL: [Self; 16] = [
+        Self::Hs256,
+        Self::Hs384,
+        Self::Hs512,
+        Self::Rs256,
+        Self::Rs384,
+        Self::Rs512,
+        Self::Ps256,
+        Self::Ps384,
+        Self::Ps512,
+        Self::Es256,
+        Self::Es384,
+        Self::Es512,
+        Self::Ed25519,
+        Self::MlDsa44,
+        Self::MlDsa65,
+        Self::MlDsa87,
+    ];
+
     pub fn kty(&self) -> JwaKty {
         match self {
             Self::Ed25519 => JwaKty::Okp,
@@ -191,6 +212,41 @@ impl JwaSigningAlgorithm {
             // RS* and PS* on the RSA modulus, and HS* is a shared secret of any length
             // above the minimum.
             _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Written without a wildcard on purpose: when a variant is added this stops compiling
+    /// until it gets a position, and that is the moment to put it in `ALL`.
+    fn position(alg: JwaSigningAlgorithm) -> usize {
+        match alg {
+            JwaSigningAlgorithm::Hs256 => 0,
+            JwaSigningAlgorithm::Hs384 => 1,
+            JwaSigningAlgorithm::Hs512 => 2,
+            JwaSigningAlgorithm::Rs256 => 3,
+            JwaSigningAlgorithm::Rs384 => 4,
+            JwaSigningAlgorithm::Rs512 => 5,
+            JwaSigningAlgorithm::Ps256 => 6,
+            JwaSigningAlgorithm::Ps384 => 7,
+            JwaSigningAlgorithm::Ps512 => 8,
+            JwaSigningAlgorithm::Es256 => 9,
+            JwaSigningAlgorithm::Es384 => 10,
+            JwaSigningAlgorithm::Es512 => 11,
+            JwaSigningAlgorithm::Ed25519 => 12,
+            JwaSigningAlgorithm::MlDsa44 => 13,
+            JwaSigningAlgorithm::MlDsa65 => 14,
+            JwaSigningAlgorithm::MlDsa87 => 15,
+        }
+    }
+
+    #[test]
+    fn all_lists_every_algorithm_once_and_in_order() {
+        for (index, alg) in JwaSigningAlgorithm::ALL.into_iter().enumerate() {
+            assert_eq!(position(alg), index, "{alg:?}");
         }
     }
 }
