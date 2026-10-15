@@ -19,9 +19,25 @@ pub(super) const RESERVED_HEADER_PARAMS: [&str; 21] = [
 /// A bound on what an attacker-controlled or buggy caller can make the signer allocate.
 pub(super) const MAX_HEADER_LEN: usize = 8 * 1024;
 
+/// Largest compact token the library will parse. A real JWS is a few KiB; anything near this
+/// size is not a token, and the cap bounds what a parse can be made to allocate and decode.
+pub(super) const MAX_TOKEN_LEN: usize = 64 * 1024;
+
+/// Extensions `crit` may list (RFC 7515 §4.1.11): the ones the library implements. A closed
+/// set, not something the caller can extend.
+pub(super) const SUPPORTED_CRIT_PARAMS: [&str; 1] = ["b64"];
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn supported_crit_params_are_not_registered_names() {
+        // RFC 7515 §4.1.11: `crit` can't list a name JWS already defines.
+        for name in SUPPORTED_CRIT_PARAMS {
+            assert!(!JWS_REGISTERED_HEADER_PARAMS.contains(&name), "{name}");
+        }
+    }
 
     #[test]
     fn reserved_contains_every_registered_name() {
